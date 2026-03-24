@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- TITLE SCREEN -->
+  <!-- ============ TITLE SCREEN ============ -->
   <div id="title-screen" class="screen active">
     <div class="title-bg">
       <div class="particle-field" id="particles"></div>
@@ -42,110 +42,143 @@
     </div>
   </div>
 
-  <!-- COMBAT SCREEN -->
+  <!-- ============ COMBAT SCREEN ============ -->
   <div id="combat-screen" class="screen">
-    <!-- Top HUD -->
-    <div class="combat-hud">
-      <div class="player-hud">
-        <div class="hud-portrait">
-          <span class="portrait-icon">📜</span>
-        </div>
-        <div class="hud-info">
-          <span class="hud-name">The Historian</span>
-          <div class="hp-bar">
-            <div class="hp-fill player-hp-fill" id="player-hp-fill"></div>
-            <span class="hp-text" id="player-hp-text">100/100</span>
-          </div>
-        </div>
-      </div>
-      <div class="turn-indicator">
-        <span class="turn-label">TURN</span>
-        <span class="turn-number" id="turn-number">1</span>
-      </div>
-      <div class="boss-hud">
-        <div class="hud-info" style="text-align:right">
-          <span class="hud-name" id="boss-name">The Echoing Cave</span>
-          <div class="hp-bar">
-            <div class="hp-fill boss-hp-fill" id="boss-hp-fill"></div>
-            <span class="hp-text" id="boss-hp-text">120/120</span>
-          </div>
-        </div>
-        <div class="hud-portrait boss-portrait">
-          <span class="portrait-icon">🦇</span>
-        </div>
-      </div>
-    </div>
 
-    <!-- Boss Area -->
-    <div class="boss-area" id="boss-area">
-      <div class="boss-visual" id="boss-visual">
-        <div class="boss-sprite" id="boss-sprite">🦇</div>
+    <!-- LEFT: Player Panel -->
+    <aside class="player-panel">
+      <div class="player-portrait">
+        <div class="portrait-frame">📜</div>
+        <div class="player-name">The Historian</div>
+        <div class="player-class">Past Tense Mastery</div>
+      </div>
+
+      <div class="stat-group">
+        <div class="stat-bar-wrap">
+          <div class="stat-bar-label">
+            <span class="stat-bar-name">HP</span>
+            <span class="stat-bar-value" id="player-hp-text">100/100</span>
+          </div>
+          <div class="stat-bar">
+            <div class="stat-bar-fill hp" id="player-hp-fill" style="width:100%"></div>
+          </div>
+        </div>
+
+        <div class="shield-display hidden" id="shield-display">
+          <span>🛡</span>
+          <span id="shield-value">0</span>
+          <span>SHIELD</span>
+        </div>
+      </div>
+
+      <div class="passive-card">
+        <div class="passive-title">⟁ Ancient Knowledge</div>
+        <div class="passive-desc">Past tense verbs deal +50% damage and grant 5 shield.</div>
+      </div>
+
+      <div class="deck-display">
+        <div class="deck-pile">
+          <div class="deck-pile-label">DECK</div>
+          <div class="deck-pile-count" id="deck-count">0</div>
+        </div>
+        <div class="deck-pile">
+          <div class="deck-pile-label">DISCARD</div>
+          <div class="deck-pile-count" id="discard-count">0</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER: Battle Area -->
+    <main class="center-area">
+      <!-- Turn bar -->
+      <div class="turn-bar">
+        <div class="run-info">SYNTAX SURVIVOR // RUN_001</div>
+        <div class="turn-badge">
+          <span class="turn-badge-label">TURN</span>
+          <span class="turn-badge-num" id="turn-number">1</span>
+        </div>
+      </div>
+
+      <!-- Boss Area -->
+      <div class="boss-area" id="boss-area">
+        <div class="boss-visual" id="boss-visual">
+          <div class="boss-sprite" id="boss-sprite">🦇</div>
+        </div>
+
+        <div class="boss-nameplate">
+          <div class="boss-type">Ancient Guardian</div>
+          <div class="boss-name-text" id="boss-name">The Echoing Cave</div>
+        </div>
+
+        <div class="boss-hp-wrap">
+          <div class="boss-hp-header">
+            <span class="boss-hp-numbers"><strong id="boss-hp-current">120</strong><span id="boss-hp-max"> / 120 HP</span></span>
+          </div>
+          <div class="boss-hp-bar">
+            <div class="boss-hp-fill" id="boss-hp-fill" style="width:100%"></div>
+          </div>
+        </div>
+
         <div class="boss-affix" id="boss-affix">
-          <span class="affix-icon">⚠</span>
-          <span class="affix-text">The Repetition Curse — Using a word from last turn reflects damage!</span>
+          <span>⚠</span>
+          <span>The Repetition Curse — Using a word from last turn reflects damage!</span>
         </div>
-      </div>
-      <div class="boss-intent" id="boss-intent"></div>
-      <div class="damage-display" id="damage-display"></div>
-    </div>
 
-    <!-- Weapon Area -->
-    <div class="weapon-area">
-      <div class="weapon-header">
-        <span class="weapon-icon">🔫</span>
-        <span class="weapon-name">THE DUAL-UZI</span>
-        <span class="weapon-type">Rapid Fire</span>
+        <div class="boss-intent" id="boss-intent"></div>
+        <div class="damage-display" id="damage-display"></div>
       </div>
-      <div class="weapon-slots" id="weapon-slots">
-        <div class="weapon-slot" data-slot="0" data-required="verb">
-          <div class="slot-label">VERB</div>
-          <div class="slot-drop" id="slot-0">
-            <span class="slot-placeholder">Drag a Verb here</span>
+
+      <!-- Weapon Area -->
+      <div class="weapon-area">
+        <div class="weapon-header">
+          <span class="weapon-icon">🔫</span>
+          <span class="weapon-name">THE DUAL-UZI</span>
+          <span class="weapon-type">Rapid Fire</span>
+        </div>
+
+        <div class="weapon-slots" id="weapon-slots">
+          <div class="weapon-slot" data-slot="0" data-required="verb">
+            <div class="slot-label">VERB</div>
+            <div class="slot-drop" id="slot-0">
+              <span class="slot-placeholder">SELECT_VERB</span>
+            </div>
+          </div>
+          <div class="slot-connector">+</div>
+          <div class="weapon-slot" data-slot="1" data-required="adverb">
+            <div class="slot-label">ADVERB</div>
+            <div class="slot-drop" id="slot-1">
+              <span class="slot-placeholder">SELECT_ADVERB</span>
+            </div>
           </div>
         </div>
-        <div class="slot-connector">+</div>
-        <div class="weapon-slot" data-slot="1" data-required="adverb">
-          <div class="slot-label">ADVERB</div>
-          <div class="slot-drop" id="slot-1">
-            <span class="slot-placeholder">Drag an Adverb here</span>
-          </div>
+
+        <div style="display:flex; gap:0.75rem; align-items:center;">
+          <button class="btn-execute" id="btn-execute" disabled>
+            <span class="execute-icon">⚡</span>
+            <span class="execute-text">EXECUTE_SYNTAX</span>
+          </button>
+          <button class="btn-end-turn" id="btn-end-turn">END TURN ▸</button>
         </div>
       </div>
-      <button class="btn-execute" id="btn-execute" disabled>
-        <span class="execute-text">EXECUTE</span>
-        <span class="execute-icon">⚡</span>
-      </button>
-      <button class="btn-end-turn" id="btn-end-turn">
-        END TURN ▶
-      </button>
-    </div>
 
-    <!-- Hand Area -->
-    <div class="hand-area">
-      <div class="hand-label">
-        <span>YOUR HAND</span>
-        <span class="deck-info">
-          Deck: <span id="deck-count">0</span> |
-          Discard: <span id="discard-count">0</span>
-        </span>
+      <!-- Hand Area -->
+      <div class="hand-area">
+        <div class="hand-label">
+          <span class="hand-label-text">LINGUISTIC_ARSENAL</span>
+          <span class="hand-capacity">HAND_CAPACITY: <span id="hand-count">0</span>/6</span>
+        </div>
+        <div class="hand-cards" id="hand-cards"></div>
       </div>
-      <div class="hand-cards" id="hand-cards"></div>
-    </div>
+    </main>
 
-    <!-- Combat Log -->
-    <div class="combat-log" id="combat-log">
-      <div class="log-header">COMBAT LOG</div>
+    <!-- RIGHT: Combat Log -->
+    <aside class="right-panel" id="combat-log">
+      <div class="log-header">STREAM_FEED</div>
       <div class="log-entries" id="log-entries"></div>
-    </div>
-
-    <!-- Character Passive -->
-    <div class="passive-indicator" id="passive-indicator">
-      <span class="passive-icon">📜</span>
-      <span class="passive-text">Ancient Knowledge: Past tense verbs deal +50% damage & grant 5 shield</span>
-    </div>
+    </aside>
   </div>
 
-  <!-- VICTORY SCREEN -->
+  <!-- ============ VICTORY SCREEN ============ -->
   <div id="victory-screen" class="screen">
     <div class="result-content">
       <h1 class="victory-title">⚔ VICTORY ⚔</h1>
@@ -157,7 +190,7 @@
     </div>
   </div>
 
-  <!-- DEFEAT SCREEN -->
+  <!-- ============ DEFEAT SCREEN ============ -->
   <div id="defeat-screen" class="screen">
     <div class="result-content defeat">
       <h1 class="defeat-title">☠ DEFEATED ☠</h1>
@@ -171,6 +204,8 @@
 
   <script type="module" src="js/data.js"></script>
   <script type="module" src="js/engine.js"></script>
+  <script type="module" src="js/sound.js"></script>
+  <script type="module" src="js/vfx.js"></script>
   <script type="module" src="js/ui.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
