@@ -1,27 +1,113 @@
 // ========== UI RENDERING & INTERACTIONS ==========
-import { CEFR_DAMAGE, CHARACTER } from './data.js';
+import { CEFR_DAMAGE, CHARACTER, WEAPONS } from './data.js';
 import { placeCard, removeCardFromSlot, allSlotsFilled, executeAttack, bossTurn, endTurn } from './engine.js';
 import { SFX } from './sound.js';
 import { VFX } from './vfx.js';
 
 let gameState = null;
 let onGameOver = null;
+let onBossVictory = null;
 let selectedCardId = null;
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
 // ---- Initialize UI ----
-export function initCombatUI(state, gameOverCallback) {
+export function initCombatUI(state, bossVictoryCallback, gameOverCallback) {
   gameState = state;
+  onBossVictory = bossVictoryCallback;
   onGameOver = gameOverCallback;
   selectedCardId = null;
+
+  // Clear log
+  $('#log-entries').innerHTML = '';
+
+  renderBossInfo();
+  renderWeaponInfo();
+  renderSlots();
   renderAll();
   setupDragDrop();
   setupButtons();
-  addLog('system', `⚔ Combat begins! You face ${state.boss.data.name}.`);
-  addLog('system', `⚠ ${state.boss.data.affix.name}: ${state.boss.data.affix.description}`);
+
+  addLog('system', `⚔ Boss ${state.bossNumber}: ${state.boss.data.name}`);
+  for (const affix of state.boss.data.affixes) {
+    addLog('system', `⚠ ${affix.icon} ${affix.name}: ${affix.description}`);
+  }
   updateBossIntent();
+}
+
+// ---- Render boss info into the DOM ----
+function renderBossInfo() {
+  $('#boss-sprite').textContent = gameState.boss.data.icon;
+  $('#boss-name').textContent = gameState.boss.data.name;
+  $('#boss-type').textContent = gameState.boss.data.type;
+  $('#run-info-text').textContent = `BOSS_${gameState.bossNumber}`;
+
+  // Render affixes
+  const affixContainer = $('#boss-affixes');
+  affixContainer.innerHTML = '';
+  for (const affix of gameState.boss.data.affixes) {
+    let desc = affix.description;
+    // Resolve templates
+    if (affix.type === 'posShield') {
+      const blockedPOS = affix.posTypes[(gameState.turn - 1) % affix.posTypes.length];
+      desc = desc.replace('{pos}', blockedPOS);
+    }
+    if (affix.type === 'tenseLock') {
+      const lockIndex = Math.floor((gameState.turn - 1) / 2) % affix.tenses.length;
+      desc = desc.replace('{tense}', affix.tenses[lockIndex]);
+    }
+    const el = document.createElement('div');
+    el.className = 'boss-affix';
+    el.innerHTML = `<span class="affix-icon">${affix.icon}</span><span class="affix-text"><strong>${affix.name}</strong> — ${desc}</span>`;
+    affixContainer.appendChild(el);
+  }
+}
+
+function renderWeaponInfo() {
+  $('#weapon-icon').textContent = gameState.weapon.icon;
+  $('#weapon-name').textContent = gameState.weapon.name.toUpperCase();
+  $('#weapon-type').textContent = gameState.weapon.type;
+
+  // Build slots HTML dynamically
+  const slotsContainer = $('#weapon-slots');
+  slotsContainer.innerHTML = '';
+  gameState.weapon.slots.forEach((slot, i) => {
+    if (i > 0) {
+      const conn = document.createElement('div');
+      conn.className = 'slot-connector';
+      conn.textContent = '+';
+      slotsContainer.appendChild(conn);
+    }
+    const wrapper = document.createElement('div');
+    wrapper.className = 'weapon-slot';
+    wrapper.dataset.required = slot.required;
+    wrapper.innerHTML = `
+      <div class="slot-label">${slot.label}</div>
+      <div class="slot-drop" id="slot-${i}">
+        <span class="slot-placeholder">SELECT_${slot.required.toUpperCase()}</span>
+      </div>
+    `;
+    slotsContainer.appendChild(wrapper);
+  });
+}
+
+// ---- Render items inventory ----
+function renderItems() {
+  const container = $('#inventory-items');
+  if (!container) return;
+  container.innerHTML = '';
+  if (gameState.items.length === 0) {
+    container.innerHTML = '<div class="inv-empty">No relics yet</div>';
+    return;
+  }
+  for (const item of gameState.items) {
+    const el = document.createElement('div');
+    el.className = `inv-item rarity-${item.rarity}`;
+    el.title = `${item.name}: ${item.description}`;
+    el.textContent = item.icon;
+    container.appendChild(el);
+  }
 }
 
 // ---- Full Render ----
@@ -30,9 +116,31 @@ function renderAll() {
   renderSlots();
   renderHP();
   renderDeckInfo();
+  renderItems();
+  renderAffixes();
   updateExecuteButton();
   $('#turn-number').textContent = gameState.turn;
   $('#hand-count').textContent = gameState.hand.length;
+}
+
+function renderAffixes() {
+  const affixContainer = $('#boss-affixes');
+  affixContainer.innerHTML = '';
+  for (const affix of gameState.boss.data.affixes) {
+    let desc = affix.description;
+    if (affix.type === 'posShield') {
+      const blockedPOS = affix.posTypes[(gameState.turn - 1) % affix.posTypes.length];
+      desc = desc.replace('{pos}', blockedPOS.toUpperCase());
+    }
+    if (affix.type === 'tenseLock') {
+      const lockIndex = Math.floor((gameState.turn - 1) / 2) % affix.tenses.length;
+      desc = desc.replace('{tense}', affix.tenses[lockIndex].toUpperCase());
+    }
+    const el = document.createElement('div');
+    el.className = 'boss-affix';
+    el.innerHTML = `<span class="affix-icon">${affix.icon}</span><span class="affix-text"><strong>${affix.name}</strong> — ${desc}</span>`;
+    affixContainer.appendChild(el);
+  }
 }
 
 // ---- Render Hand ----
@@ -58,7 +166,12 @@ function createCardElement(card) {
   if (selectedCardId === card.id) el.classList.add('selected');
 
   const baseDmg = CEFR_DAMAGE[card.cefr] || 10;
-  const dmgDisplay = isHistorianBonus ? Math.floor(baseDmg * CHARACTER.passive.damageMultiplier) : baseDmg;
+  let dmgDisplay = isHistorianBonus ? Math.floor(baseDmg * CHARACTER.passive.damageMultiplier) : baseDmg;
+  // Apply weapon multiplier to display
+  if (gameState.weapon.damageMultiplier !== 1.0) {
+    dmgDisplay = Math.floor(dmgDisplay * gameState.weapon.damageMultiplier);
+  }
+
   const tenseHTML = card.tense ? `<div class="card-tense">${card.tense}</div>` : '';
   const bonusIcon = isHistorianBonus ? '<div class="card-bonus-icon">✦</div>' : '';
 
@@ -191,7 +304,6 @@ function setupDragDrop() {
       slot.classList.remove('drag-over', 'drag-over-invalid');
       handleDrop(parseInt(e.dataTransfer.getData('text/plain')), parseInt(slot.id.split('-')[1]));
     });
-    // Click-to-place
     slot.addEventListener('click', () => {
       if (selectedCardId === null || gameState.phase !== 'play') return;
       handleDrop(selectedCardId, parseInt(slot.id.split('-')[1]));
@@ -228,6 +340,7 @@ function handleDrop(cardId, slotIdx) {
 function renderSlots() {
   gameState.slots.forEach((card, i) => {
     const slot = $(`#slot-${i}`);
+    if (!slot) return;
     if (card) {
       slot.innerHTML = `<div class="slot-card" data-slot-index="${i}"><div class="card-word">${card.word}</div><div class="card-meta">${card.pos} · ${card.cefr}</div></div>`;
       slot.classList.add('filled');
@@ -259,7 +372,6 @@ function renderHP() {
 
   $('#player-hp-text').textContent = `${Math.max(0, p.hp)}/${p.maxHP}`;
 
-  // Shield
   const shieldEl = $('#shield-display');
   if (p.shield > 0) {
     shieldEl.classList.remove('hidden');
@@ -268,7 +380,6 @@ function renderHP() {
     shieldEl.classList.add('hidden');
   }
 
-  // Boss HP
   $('#boss-hp-fill').style.width = bPct + '%';
   $('#boss-hp-current').textContent = Math.max(0, b.hp).toLocaleString();
   $('#boss-hp-max').textContent = ` / ${b.maxHP} HP`;
@@ -284,8 +395,16 @@ function updateExecuteButton() {
 }
 
 function setupButtons() {
-  $('#btn-execute').addEventListener('click', handleExecute);
-  $('#btn-end-turn').addEventListener('click', handleEndTurn);
+  // Remove old listeners by cloning
+  const execBtn = $('#btn-execute');
+  const newExec = execBtn.cloneNode(true);
+  execBtn.parentNode.replaceChild(newExec, execBtn);
+  newExec.addEventListener('click', handleExecute);
+
+  const endBtn = $('#btn-end-turn');
+  const newEnd = endBtn.cloneNode(true);
+  endBtn.parentNode.replaceChild(newEnd, endBtn);
+  newEnd.addEventListener('click', handleEndTurn);
 }
 
 function updateBossIntent() {
@@ -317,6 +436,12 @@ async function handleExecute() {
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     await delay(350);
+
+    if (!r.card) {
+      // Bonus-only result (weapon shield, item proc, etc.)
+      for (const b of r.bonuses) addLog('bonus', `  ${b}`);
+      continue;
+    }
 
     if (r.reflected) {
       showDamageNumber(r.reflectedDamage, 'blocked', 'REFLECTED!');
@@ -366,7 +491,7 @@ async function handleExecute() {
     await delay(600);
     SFX.victory();
     VFX.victoryCelebration();
-    onGameOver('victory');
+    if (onBossVictory) onBossVictory();
     return;
   }
 
@@ -378,13 +503,24 @@ async function handleExecute() {
 async function handleBossTurn() {
   gameState.phase = 'enemy';
 
+  const { state, damage, shieldAbsorbed, isSpecial, attackName, stunned } = bossTurn(gameState);
+  gameState = state;
+
+  if (stunned) {
+    addLog('boss-action', `🦇 ${gameState.boss.data.name} is STUNNED! Skips attack.`);
+    await delay(600);
+    SFX.turnStart();
+    gameState = endTurn(gameState);
+    renderAll();
+    updateBossIntent();
+    addLog('system', `── Turn ${gameState.turn} ──`);
+    return;
+  }
+
   SFX.bossAttack();
   $('#boss-sprite').classList.add('attack');
   await delay(500);
   $('#boss-sprite').classList.remove('attack');
-
-  const { state, damage, shieldAbsorbed, isSpecial, attackName } = bossTurn(gameState);
-  gameState = state;
 
   VFX.bossAttackVFX();
 
@@ -403,7 +539,7 @@ async function handleBossTurn() {
   if (gameState.phase === 'defeat') {
     await delay(600);
     SFX.defeat();
-    onGameOver('defeat');
+    if (onGameOver) onGameOver();
     return;
   }
 
@@ -471,3 +607,46 @@ function addLog(type, message) {
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 export function getStats() { return gameState ? gameState.stats : null; }
+export function getState() { return gameState; }
+
+// ========== WEAPON SELECT SCREEN ==========
+export function renderWeaponSelect(onSelect) {
+  const grid = $('#weapon-grid');
+  grid.innerHTML = '';
+
+  for (const weapon of WEAPONS) {
+    const card = document.createElement('div');
+    card.className = 'weapon-card';
+    card.innerHTML = `
+      <div class="weapon-card-icon">${weapon.icon}</div>
+      <div class="weapon-card-name">${weapon.name}</div>
+      <div class="weapon-card-type">${weapon.type}</div>
+      <div class="weapon-card-slots">
+        ${weapon.slots.map(s => `<span class="weapon-slot-tag" data-pos="${s.required}">${s.label}</span>`).join(' + ')}
+      </div>
+      <div class="weapon-card-desc">${weapon.description}</div>
+      <div class="weapon-card-mult">x${weapon.damageMultiplier} DMG</div>
+    `;
+    card.addEventListener('click', () => onSelect(weapon.id));
+    grid.appendChild(card);
+  }
+}
+
+// ========== LOOT SCREEN ==========
+export function renderLootScreen(items, onPick) {
+  const grid = $('#loot-grid');
+  grid.innerHTML = '';
+
+  for (const item of items) {
+    const card = document.createElement('div');
+    card.className = `loot-card rarity-${item.rarity}`;
+    card.innerHTML = `
+      <div class="loot-rarity">${item.rarity.toUpperCase()}</div>
+      <div class="loot-icon">${item.icon}</div>
+      <div class="loot-name">${item.name}</div>
+      <div class="loot-desc">${item.description}</div>
+    `;
+    card.addEventListener('click', () => onPick(item.id));
+    grid.appendChild(card);
+  }
+}

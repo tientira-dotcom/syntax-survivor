@@ -30,15 +30,24 @@
             <span class="info-value">The Historian</span>
           </div>
           <div class="info-card">
-            <span class="info-label">WEAPON</span>
-            <span class="info-value">The Dual-Uzi</span>
+            <span class="info-label">PASSIVE</span>
+            <span class="info-value">Past Tense +50%</span>
           </div>
           <div class="info-card">
-            <span class="info-label">BOSS</span>
-            <span class="info-value">The Echoing Cave</span>
+            <span class="info-label">MODE</span>
+            <span class="info-value">Endless Run</span>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ WEAPON SELECT SCREEN ============ -->
+  <div id="weapon-screen" class="screen">
+    <div class="weapon-select-content">
+      <h2 class="screen-title">⚔ CHOOSE YOUR WEAPON</h2>
+      <p class="screen-subtitle">Each weapon requires different parts of speech.</p>
+      <div class="weapon-grid" id="weapon-grid"></div>
     </div>
   </div>
 
@@ -76,6 +85,12 @@
         <div class="passive-desc">Past tense verbs deal +50% damage and grant 5 shield.</div>
       </div>
 
+      <!-- Item Inventory -->
+      <div class="item-inventory" id="item-inventory">
+        <div class="inventory-header">RELICS</div>
+        <div class="inventory-items" id="inventory-items"></div>
+      </div>
+
       <div class="deck-display">
         <div class="deck-pile">
           <div class="deck-pile-label">DECK</div>
@@ -92,7 +107,7 @@
     <main class="center-area">
       <!-- Turn bar -->
       <div class="turn-bar">
-        <div class="run-info">SYNTAX SURVIVOR // RUN_001</div>
+        <div class="run-info">SYNTAX SURVIVOR // <span id="run-info-text">BOSS_1</span></div>
         <div class="turn-badge">
           <span class="turn-badge-label">TURN</span>
           <span class="turn-badge-num" id="turn-number">1</span>
@@ -106,7 +121,7 @@
         </div>
 
         <div class="boss-nameplate">
-          <div class="boss-type">Ancient Guardian</div>
+          <div class="boss-type" id="boss-type">Ancient Guardian</div>
           <div class="boss-name-text" id="boss-name">The Echoing Cave</div>
         </div>
 
@@ -119,11 +134,7 @@
           </div>
         </div>
 
-        <div class="boss-affix" id="boss-affix">
-          <span>⚠</span>
-          <span>The Repetition Curse — Using a word from last turn reflects damage!</span>
-        </div>
-
+        <div class="boss-affixes" id="boss-affixes"></div>
         <div class="boss-intent" id="boss-intent"></div>
         <div class="damage-display" id="damage-display"></div>
       </div>
@@ -131,26 +142,12 @@
       <!-- Weapon Area -->
       <div class="weapon-area">
         <div class="weapon-header">
-          <span class="weapon-icon">🔫</span>
-          <span class="weapon-name">THE DUAL-UZI</span>
-          <span class="weapon-type">Rapid Fire</span>
+          <span class="weapon-icon" id="weapon-icon">🔫</span>
+          <span class="weapon-name" id="weapon-name">THE DUAL-UZI</span>
+          <span class="weapon-type" id="weapon-type">Rapid Fire</span>
         </div>
 
-        <div class="weapon-slots" id="weapon-slots">
-          <div class="weapon-slot" data-slot="0" data-required="verb">
-            <div class="slot-label">VERB</div>
-            <div class="slot-drop" id="slot-0">
-              <span class="slot-placeholder">SELECT_VERB</span>
-            </div>
-          </div>
-          <div class="slot-connector">+</div>
-          <div class="weapon-slot" data-slot="1" data-required="adverb">
-            <div class="slot-label">ADVERB</div>
-            <div class="slot-drop" id="slot-1">
-              <span class="slot-placeholder">SELECT_ADVERB</span>
-            </div>
-          </div>
-        </div>
+        <div class="weapon-slots" id="weapon-slots"></div>
 
         <div style="display:flex; gap:0.75rem; align-items:center;">
           <button class="btn-execute" id="btn-execute" disabled>
@@ -178,15 +175,13 @@
     </aside>
   </div>
 
-  <!-- ============ VICTORY SCREEN ============ -->
-  <div id="victory-screen" class="screen">
-    <div class="result-content">
-      <h1 class="victory-title">⚔ VICTORY ⚔</h1>
-      <p class="result-subtitle">The Echoing Cave has been silenced.</p>
-      <div class="result-stats" id="victory-stats"></div>
-      <button class="btn-primary" id="btn-restart-win">
-        <span class="btn-icon">🔄</span> NEW RUN
-      </button>
+  <!-- ============ LOOT SCREEN ============ -->
+  <div id="loot-screen" class="screen">
+    <div class="loot-content">
+      <h2 class="screen-title">🏆 VICTORY — CHOOSE A RELIC</h2>
+      <p class="screen-subtitle" id="loot-subtitle">You defeated the boss! Pick one relic to carry forward.</p>
+      <div class="loot-grid" id="loot-grid"></div>
+      <button class="btn-primary" id="btn-skip-loot">SKIP ▸</button>
     </div>
   </div>
 

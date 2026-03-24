@@ -1,6 +1,7 @@
 // ========== MAIN ENTRY POINT ==========
-import { createGameState, drawCards } from './engine.js';
-import { initCombatUI, getStats } from './ui.js';
+import { createGameState, drawCards, progressToNextBoss, pickItem } from './engine.js';
+import { initCombatUI, getStats, getState, renderWeaponSelect, renderLootScreen } from './ui.js';
+import { getRandomItems } from './data.js';
 
 // ---- Screen Management ----
 function showScreen(screenId) {
@@ -23,33 +24,71 @@ function createParticles() {
   }
 }
 
-// ---- Start Game ----
-function startGame() {
-  showScreen('combat-screen');
+// ---- Game State ----
+let state = null;
 
-  const state = createGameState();
-  drawCards(state);
-
-  initCombatUI(state, handleGameOver);
+// ---- Start: go to weapon select ----
+function startRun() {
+  showScreen('weapon-screen');
+  renderWeaponSelect(onWeaponSelected);
 }
 
-// ---- Game Over ----
-function handleGameOver(result) {
-  const stats = getStats();
+// ---- Weapon selected → start combat ----
+function onWeaponSelected(weaponId) {
+  state = createGameState(weaponId, 1);
+  drawCards(state);
+  showScreen('combat-screen');
+  initCombatUI(state, handleBossVictory, handleDefeat);
+}
 
-  if (result === 'victory') {
-    showScreen('victory-screen');
-    renderStats('victory-stats', stats);
-  } else {
-    showScreen('defeat-screen');
-    renderStats('defeat-stats', stats);
-  }
+// ---- Boss defeated → loot screen ----
+function handleBossVictory() {
+  const currentState = getState();
+  state = currentState;
+
+  const ownedIds = state.items.map(i => i.id);
+  const lootOptions = getRandomItems(3, ownedIds);
+
+  document.getElementById('loot-subtitle').textContent =
+    `You defeated ${state.boss.data.name}! Pick one relic to carry forward.`;
+
+  showScreen('loot-screen');
+  renderLootScreen(lootOptions, onLootPicked);
+
+  // Skip button
+  const skipBtn = document.getElementById('btn-skip-loot');
+  const newSkip = skipBtn.cloneNode(true);
+  skipBtn.parentNode.replaceChild(newSkip, skipBtn);
+  newSkip.addEventListener('click', () => advanceToNextBoss());
+}
+
+function onLootPicked(itemId) {
+  state = pickItem(state, itemId);
+  advanceToNextBoss();
+}
+
+function advanceToNextBoss() {
+  state = progressToNextBoss(state);
+  drawCards(state);
+  showScreen('combat-screen');
+  initCombatUI(state, handleBossVictory, handleDefeat);
+}
+
+// ---- Defeat ----
+function handleDefeat() {
+  const stats = getStats();
+  showScreen('defeat-screen');
+  renderStats('defeat-stats', stats);
 }
 
 function renderStats(containerId, stats) {
   if (!stats) return;
   const container = document.getElementById(containerId);
   container.innerHTML = `
+    <div class="stat-card">
+      <span class="stat-label">Bosses Slain</span>
+      <span class="stat-value">${stats.bossesDefeated}</span>
+    </div>
     <div class="stat-card">
       <span class="stat-label">Total Damage</span>
       <span class="stat-value">${stats.totalDamage}</span>
@@ -63,12 +102,16 @@ function renderStats(containerId, stats) {
       <span class="stat-value">${stats.wordsUsed}</span>
     </div>
     <div class="stat-card">
-      <span class="stat-label">Past Tense</span>
-      <span class="stat-value">${stats.pastTenseUsed}</span>
+      <span class="stat-label">Relics</span>
+      <span class="stat-value">${stats.itemsCollected}</span>
     </div>
     <div class="stat-card">
       <span class="stat-label">Best Hit</span>
       <span class="stat-value">${stats.highestDamage}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Past Tense</span>
+      <span class="stat-value">${stats.pastTenseUsed}</span>
     </div>
     <div class="stat-card">
       <span class="stat-label">Misfires</span>
@@ -81,10 +124,7 @@ function renderStats(containerId, stats) {
 document.addEventListener('DOMContentLoaded', () => {
   createParticles();
 
-  document.getElementById('btn-start').addEventListener('click', startGame);
-  document.getElementById('btn-restart-win').addEventListener('click', () => {
-    showScreen('title-screen');
-  });
+  document.getElementById('btn-start').addEventListener('click', startRun);
   document.getElementById('btn-restart-lose').addEventListener('click', () => {
     showScreen('title-screen');
   });

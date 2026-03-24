@@ -1,5 +1,5 @@
 // ========== GAME ENGINE ==========
-import { CEFR_DAMAGE, CHARACTER, WEAPON, BOSS, createStarterDeck } from './data.js';
+import { CEFR_DAMAGE, CHARACTER, WEAPONS, ITEMS, generateBoss, cefrMeetsMin, createStarterDeck } from './data.js';
 
 // ---- Utility ----
 function shuffle(arr) {
@@ -16,37 +16,38 @@ function randInt(min, max) {
 }
 
 // ========== GAME STATE ==========
-export function createGameState() {
+export function createGameState(weaponId, difficulty = 1) {
+  const weapon = WEAPONS.find(w => w.id === weaponId) || WEAPONS[0];
+  const boss = generateBoss(difficulty);
   const starterDeck = createStarterDeck();
+
   return {
-    // Player
     player: {
       hp: CHARACTER.baseHP,
       maxHP: CHARACTER.baseHP,
       shield: 0,
-      character: CHARACTER,
+      character: { ...CHARACTER },
     },
-    // Boss
     boss: {
-      hp: BOSS.maxHP,
-      maxHP: BOSS.maxHP,
-      data: BOSS,
+      hp: boss.maxHP,
+      maxHP: boss.maxHP,
+      data: boss,
       attackBoost: 0,
       phasesTriggered: new Set(),
+      stunned: false,
     },
-    // Cards
     deck: shuffle(starterDeck),
     hand: [],
     discard: [],
-    // Weapon slots: array of card or null
-    slots: WEAPON.slots.map(() => null),
-    weapon: WEAPON,
-    // Combat state
+    slots: weapon.slots.map(() => null),
+    weapon,
+    items: [],
     turn: 1,
-    phase: 'play', // 'play' | 'executing' | 'enemy' | 'victory' | 'defeat'
-    lastTurnWords: [],   // words used last turn (for Echoing Cave)
-    currentTurnWords: [], // words used this turn
-    // Stats
+    bossNumber: difficulty,
+    phase: 'play',
+    lastTurnWords: [],
+    currentTurnWords: [],
+    syllableCount: 0,
     stats: {
       totalDamage: 0,
       turnsPlayed: 0,
@@ -54,16 +55,62 @@ export function createGameState() {
       pastTenseUsed: 0,
       highestDamage: 0,
       misfires: 0,
+      bossesDefeated: 0,
+      itemsCollected: 0,
     },
   };
 }
 
+// Progress to next boss (keep items, deck, stats, HP)
+export function progressToNextBoss(state) {
+  const nextDifficulty = state.bossNumber + 1;
+  const boss = generateBoss(nextDifficulty);
+
+  state.boss = {
+    hp: boss.maxHP,
+    maxHP: boss.maxHP,
+    data: boss,
+    attackBoost: 0,
+    phasesTriggered: new Set(),
+    stunned: false,
+  };
+  state.bossNumber = nextDifficulty;
+  state.turn = 1;
+  state.phase = 'play';
+  state.lastTurnWords = [];
+  state.currentTurnWords = [];
+  state.slots = state.weapon.slots.map(() => null);
+
+  // Reshuffle all cards
+  state.deck = shuffle([...state.deck, ...state.hand, ...state.discard]);
+  state.hand = [];
+  state.discard = [];
+
+  return state;
+}
+
+// ========== ITEM MANAGEMENT ==========
+export function pickItem(state, itemId) {
+  const item = ITEMS.find(i => i.id === itemId);
+  if (!item) return state;
+
+  state.items.push({ ...item });
+  state.stats.itemsCollected++;
+
+  if (item.onPickup) {
+    item.onPickup(state);
+  }
+
+  return state;
+}
+
 // ========== CARD OPERATIONS ==========
 export function drawCards(state) {
-  const toDraw = CHARACTER.handSize - state.hand.length;
+  const handSize = state.player.character.handSize || CHARACTER.handSize;
+  const toDraw = handSize - state.hand.length;
   for (let i = 0; i < toDraw; i++) {
     if (state.deck.length === 0) {
-      if (state.discard.length === 0) break; // No cards left at all
+      if (state.discard.length === 0) break;
       state.deck = shuffle(state.discard);
       state.discard = [];
     }
@@ -83,17 +130,14 @@ export function placeCard(state, cardId, slotIndex) {
     return { state, success: false, reason: `Requires ${requiredPOS}, got ${card.pos}` };
   }
 
-  // Remove from old slot if already placed
   const oldSlot = state.slots.findIndex(s => s && s.id === cardId);
   if (oldSlot !== -1) state.slots[oldSlot] = null;
 
-  // If slot already has a card, return it to hand
   if (state.slots[slotIndex]) {
     state.hand.push(state.slots[slotIndex]);
     state.slots[slotIndex] = null;
   }
 
-  // Place card
   state.hand.splice(cardIdx, 1);
   state.slots[slotIndex] = card;
 
@@ -118,7 +162,9 @@ export function executeAttack(state) {
 
   const results = [];
   let totalDamage = 0;
-  let reflected = false;
+  let totalReflected = 0;
+  let syllablesThisTurn = 0;
+  const hasImmuneRepeat = state.items.some(i => i.passive && i.passive.immuneRepeat);
 
   for (let i = 0; i < state.slots.length; i++) {
     const card = state.slots[i];
@@ -126,31 +172,84 @@ export function executeAttack(state) {
     let damage = baseDmg;
     let bonusType = 'normal';
     let bonuses = [];
+    let blocked = false;
 
-    // Check Echoing Cave affix: repeated word from last turn
     const wordLower = card.word.toLowerCase();
-    const isRepeated = state.lastTurnWords.includes(wordLower);
 
-    if (isRepeated) {
-      // Damage reflected back to player!
-      reflected = true;
-      results.push({
-        card,
-        damage: 0,
-        reflected: true,
-        reflectedDamage: damage,
-        bonusType: 'blocked',
-        bonuses: ['REFLECTED! Same word as last turn!'],
-        sentence: card.word,
-      });
-      // Apply reflected damage to player
-      state.player.hp = Math.max(0, state.player.hp - damage);
+    // ---- Boss Affix checks ----
+    for (const affix of state.boss.data.affixes) {
+      if (blocked) break;
+      switch (affix.type) {
+        case 'repetition':
+          if (!hasImmuneRepeat && state.lastTurnWords.includes(wordLower)) {
+            blocked = true;
+            const reflectDmg = damage;
+            totalReflected += reflectDmg;
+            results.push({
+              card, damage: 0, reflected: true, reflectedDamage: reflectDmg,
+              bonusType: 'blocked',
+              bonuses: [`${affix.icon} REFLECTED! Same word as last turn!`],
+            });
+            state.player.hp = Math.max(0, state.player.hp - reflectDmg);
+          }
+          break;
+
+        case 'tenseLock': {
+          if (card.pos === 'verb') {
+            const lockIndex = Math.floor((state.turn - 1) / 2) % affix.tenses.length;
+            const requiredTense = affix.tenses[lockIndex];
+            if (card.tense !== requiredTense) {
+              damage = 0;
+              bonuses.push(`${affix.icon} Tense Lock: only ${requiredTense} verbs!`);
+              bonusType = 'blocked';
+            }
+          }
+          break;
+        }
+
+        case 'posShield': {
+          const shieldIndex = (state.turn - 1) % affix.posTypes.length;
+          const blockedPOS = affix.posTypes[shieldIndex];
+          if (card.pos === blockedPOS) {
+            damage = 0;
+            bonuses.push(`${affix.icon} Shield blocks ${blockedPOS}!`);
+            bonusType = 'blocked';
+          }
+          break;
+        }
+
+        case 'vocabGate':
+          if (!cefrMeetsMin(card.cefr, affix.minCefr)) {
+            damage = 0;
+            bonuses.push(`${affix.icon} Vocab Gate: ${affix.minCefr}+ required!`);
+            bonusType = 'blocked';
+          }
+          break;
+
+        case 'shortFuse':
+          if (card.word.length <= affix.maxLen) {
+            damage = Math.floor(damage * affix.penalty);
+            bonuses.push(`${affix.icon} Short Fuse: -50%`);
+          }
+          break;
+
+        case 'suffixBonus':
+          if (affix.suffixes.some(s => wordLower.endsWith(s))) {
+            damage = Math.floor(damage * affix.bonus);
+            bonuses.push(`${affix.icon} Suffix bonus: +25%`);
+            if (bonusType === 'normal') bonusType = 'character';
+          }
+          break;
+      }
+    }
+
+    if (blocked) {
       state.currentTurnWords.push(wordLower);
       continue;
     }
 
-    // Character passive: Historian - past tense bonus
-    if (CHARACTER.passive.trigger(card)) {
+    // ---- Character passive: Historian ----
+    if (damage > 0 && CHARACTER.passive.trigger(card)) {
       const extraDmg = Math.floor(damage * (CHARACTER.passive.damageMultiplier - 1));
       damage = Math.floor(damage * CHARACTER.passive.damageMultiplier);
       bonusType = 'character';
@@ -160,17 +259,91 @@ export function executeAttack(state) {
       state.stats.pastTenseUsed++;
     }
 
+    // ---- Item effects ----
+    if (damage > 0) {
+      for (const item of state.items) {
+        if (item.check && item.check(card)) {
+          if (item.effect.damageMultiplier) {
+            const before = damage;
+            damage = Math.floor(damage * item.effect.damageMultiplier);
+            bonuses.push(`${item.icon} ${item.name} +${damage - before}`);
+            if (bonusType === 'normal') bonusType = 'character';
+          }
+          if (item.effect.heal) {
+            state.player.hp = Math.min(state.player.maxHP, state.player.hp + item.effect.heal);
+            bonuses.push(`${item.icon} +${item.effect.heal} HP`);
+          }
+          if (item.effect.shield) {
+            state.player.shield += item.effect.shield;
+            bonuses.push(`${item.icon} +${item.effect.shield} Shield`);
+          }
+        }
+        if (item.checkIndex && item.checkIndex(card, i)) {
+          if (item.effect.damageMultiplier) {
+            const before = damage;
+            damage = Math.floor(damage * item.effect.damageMultiplier);
+            bonuses.push(`${item.icon} ${item.name} +${damage - before}`);
+            if (bonusType === 'normal') bonusType = 'character';
+          }
+        }
+        if (item.stunOnC2 && card.cefr === 'C2') {
+          state.boss.stunned = true;
+          bonuses.push(`${item.icon} C2 STUN!`);
+        }
+      }
+    }
+
+    // ---- Weapon multiplier ----
+    if (damage > 0 && state.weapon.damageMultiplier !== 1.0) {
+      damage = Math.floor(damage * state.weapon.damageMultiplier);
+    }
+
+    // ---- Syllable tracking ----
+    if (card.syllables) syllablesThisTurn += card.syllables;
+
     totalDamage += damage;
     state.currentTurnWords.push(wordLower);
 
-    results.push({
-      card,
-      damage,
-      reflected: false,
-      bonusType,
-      bonuses,
-      sentence: card.word,
-    });
+    results.push({ card, damage, reflected: false, bonusType, bonuses, sentence: card.word });
+  }
+
+  // ---- Weapon bonus (staff shield) ----
+  if (state.weapon.bonus && state.weapon.bonus.type === 'shield') {
+    state.player.shield += state.weapon.bonus.value;
+  }
+
+  // ---- Grammar Shield item ----
+  for (const item of state.items) {
+    if (item.onFullExecute) {
+      state.player.shield += item.fullExecuteShield;
+    }
+  }
+
+  // ---- Syllable Battery ----
+  state.syllableCount += syllablesThisTurn;
+  for (const item of state.items) {
+    if (item.trackSyllables) {
+      while (state.syllableCount >= item.syllableThreshold) {
+        state.syllableCount -= item.syllableThreshold;
+        totalDamage += item.syllableDamage;
+      }
+    }
+  }
+
+  // ---- Multilingual Core ----
+  for (const item of state.items) {
+    if (item.onExecuteChance && Math.random() < item.onExecuteChance) {
+      totalDamage += item.onExecuteDamage;
+    }
+  }
+
+  // ---- Mirror Shield affix ----
+  for (const affix of state.boss.data.affixes) {
+    if (affix.type === 'mirror' && totalDamage > 0) {
+      const mirrorDmg = Math.floor(totalDamage * affix.reflectPct);
+      state.player.hp = Math.max(0, state.player.hp - mirrorDmg);
+      totalReflected += mirrorDmg;
+    }
   }
 
   // Apply damage to boss
@@ -184,43 +357,45 @@ export function executeAttack(state) {
 
   // Update stats
   state.stats.totalDamage += totalDamage;
-  state.stats.wordsUsed += results.length;
-  if (totalDamage > state.stats.highestDamage) {
-    state.stats.highestDamage = totalDamage;
-  }
+  const cardCount = state.weapon.slots.length;
+  state.stats.wordsUsed += cardCount;
+  if (totalDamage > state.stats.highestDamage) state.stats.highestDamage = totalDamage;
 
-  // Build sentence summary
-  const sentence = results.map(r => r.card.word).join(' ');
+  const sentence = results.filter(r => r.card).map(r => r.card.word).join(' ');
 
-  // Check boss phase triggers
+  // Phase triggers
   const phaseMessages = [];
   for (const phase of state.boss.data.phases) {
-    const hpPercent = (state.boss.hp / state.boss.maxHP) * 100;
-    if (hpPercent <= phase.hpPercent && !state.boss.phasesTriggered.has(phase.hpPercent)) {
+    const hpPct = (state.boss.hp / state.boss.maxHP) * 100;
+    if (hpPct <= phase.hpPercent && !state.boss.phasesTriggered.has(phase.hpPercent)) {
       state.boss.phasesTriggered.add(phase.hpPercent);
       phaseMessages.push(phase.message);
       if (phase.attackBoost) state.boss.attackBoost += phase.attackBoost;
     }
   }
 
-  // Check victory
   if (state.boss.hp <= 0) {
     state.phase = 'victory';
+    state.stats.bossesDefeated++;
   }
 
-  return { state, results, totalDamage, sentence, reflected, phaseMessages };
+  return { state, results, totalDamage, totalReflected, sentence, reflected: totalReflected > 0, phaseMessages };
 }
 
 // ========== BOSS TURN ==========
 export function bossTurn(state) {
   if (state.phase === 'victory' || state.phase === 'defeat') return { state, damage: 0 };
 
+  if (state.boss.stunned) {
+    state.boss.stunned = false;
+    return { state, damage: 0, shieldAbsorbed: 0, isSpecial: false, attackName: 'STUNNED', stunned: true };
+  }
+
   const boss = state.boss;
   let damage;
   let isSpecial = false;
-  let attackName = 'Echo Strike';
+  let attackName = 'Strike';
 
-  // Special attack every N turns
   if (state.turn % boss.data.specialEvery === 0) {
     damage = randInt(boss.data.specialAttack.min, boss.data.specialAttack.max);
     isSpecial = true;
@@ -231,7 +406,21 @@ export function bossTurn(state) {
 
   damage += boss.attackBoost;
 
-  // Apply shield
+  // Echo Amp affix
+  for (const affix of boss.data.affixes) {
+    if (affix.type === 'echoAmp') {
+      boss.attackBoost += affix.perTurn;
+    }
+  }
+
+  // Iron Will item
+  for (const item of state.items) {
+    if (item.passive && item.passive.reduceDamage) {
+      damage = Math.max(0, damage - item.passive.reduceDamage);
+    }
+  }
+
+  // Shield
   let shieldAbsorbed = 0;
   if (state.player.shield > 0) {
     shieldAbsorbed = Math.min(state.player.shield, damage);
@@ -245,19 +434,17 @@ export function bossTurn(state) {
     state.phase = 'defeat';
   }
 
-  return { state, damage, shieldAbsorbed, isSpecial, attackName };
+  return { state, damage, shieldAbsorbed, isSpecial, attackName, stunned: false };
 }
 
 // ========== END TURN ==========
 export function endTurn(state) {
-  // Move current turn words to last turn words
   state.lastTurnWords = [...state.currentTurnWords];
   state.currentTurnWords = [];
   state.turn++;
   state.stats.turnsPlayed++;
   state.phase = 'play';
 
-  // Discard remaining hand, then draw fresh
   state.discard.push(...state.hand);
   state.hand = [];
   drawCards(state);

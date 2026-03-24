@@ -1093,20 +1093,279 @@ body {
   80% { transform: translate(4px, -6px); }
 }
 
-/* ---- RESULT SCREENS ---- */
-#victory-screen, #defeat-screen {
+/* ---- WEAPON SELECT SCREEN ---- */
+#weapon-screen {
   align-items: center;
   justify-content: center;
-}
-
-#victory-screen {
   background:
-    radial-gradient(ellipse at 50% 30%, rgba(255, 215, 0, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 70%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 30%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
     var(--bg-abyss);
 }
 
+.weapon-select-content {
+  text-align: center;
+  padding: 2rem;
+  max-width: 900px;
+  width: 100%;
+}
+
+.screen-title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 900;
+  color: var(--text-bright);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.05em;
+}
+
+.screen-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-bottom: 2rem;
+}
+
+.weapon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.weapon-card {
+  background: linear-gradient(180deg, var(--bg-card), var(--bg-deep));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.weapon-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--teal);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 0 30px var(--teal-glow);
+}
+
+.weapon-card-icon { font-size: 2.5rem; }
+.weapon-card-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: 0.05em;
+}
+
+.weapon-card-type {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--teal);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 2px 10px;
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  border-radius: 20px;
+}
+
+.weapon-card-slots {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.55rem;
+  color: var(--text-dim);
+}
+
+.weapon-slot-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.weapon-slot-tag[data-pos="verb"] { background: rgba(248, 113, 113, 0.12); color: var(--pos-verb); }
+.weapon-slot-tag[data-pos="adverb"] { background: rgba(251, 146, 60, 0.12); color: var(--pos-adverb); }
+.weapon-slot-tag[data-pos="noun"] { background: rgba(96, 165, 250, 0.12); color: var(--pos-noun); }
+.weapon-slot-tag[data-pos="adjective"] { background: rgba(52, 211, 153, 0.12); color: var(--pos-adjective); }
+
+.weapon-card-desc {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.weapon-card-mult {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin-top: 0.25rem;
+}
+
+/* ---- LOOT SCREEN ---- */
+#loot-screen {
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(255, 215, 0, 0.08) 0%, transparent 50%),
+    var(--bg-abyss);
+}
+
+.loot-content {
+  text-align: center;
+  padding: 2rem;
+  max-width: 800px;
+  width: 100%;
+}
+
+.loot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.loot-card {
+  background: linear-gradient(180deg, var(--bg-card), var(--bg-deep));
+  border: 2px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.loot-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+
+.loot-card.rarity-common { border-color: rgba(160, 160, 180, 0.3); }
+.loot-card.rarity-common:hover { border-color: rgba(160, 160, 180, 0.6); box-shadow: 0 0 20px rgba(160, 160, 180, 0.15); }
+.loot-card.rarity-rare { border-color: rgba(99, 102, 241, 0.4); }
+.loot-card.rarity-rare:hover { border-color: rgba(99, 102, 241, 0.7); box-shadow: 0 0 25px rgba(99, 102, 241, 0.2); }
+.loot-card.rarity-legendary { border-color: rgba(245, 158, 11, 0.4); background: linear-gradient(180deg, rgba(245, 158, 11, 0.05), var(--bg-deep)); }
+.loot-card.rarity-legendary:hover { border-color: rgba(245, 158, 11, 0.7); box-shadow: 0 0 30px rgba(245, 158, 11, 0.25); }
+
+.loot-rarity {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.25em;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+.rarity-common .loot-rarity { color: #a0a0b4; background: rgba(160, 160, 180, 0.1); }
+.rarity-rare .loot-rarity { color: #818cf8; background: rgba(99, 102, 241, 0.1); }
+.rarity-legendary .loot-rarity { color: var(--gold); background: rgba(245, 158, 11, 0.1); }
+
+.loot-icon { font-size: 2.5rem; }
+
+.loot-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.loot-desc {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* ---- ITEM INVENTORY (sidebar) ---- */
+.item-inventory {
+  padding: 0.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.inventory-header {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.5rem;
+  color: var(--text-muted);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.inventory-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.inv-item {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: default;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  transition: all 0.15s;
+}
+
+.inv-item:hover {
+  transform: scale(1.2);
+  z-index: 5;
+}
+
+.inv-item.rarity-common { border-color: rgba(160, 160, 180, 0.25); }
+.inv-item.rarity-rare { border-color: rgba(99, 102, 241, 0.35); box-shadow: 0 0 8px rgba(99, 102, 241, 0.15); }
+.inv-item.rarity-legendary { border-color: rgba(245, 158, 11, 0.4); box-shadow: 0 0 10px rgba(245, 158, 11, 0.2); }
+
+.inv-empty {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0.25rem 0;
+}
+
+/* Boss affixes container */
+.boss-affixes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.boss-affix {
+  padding: 0.4rem 0.75rem;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius);
+  font-size: 0.7rem;
+  color: var(--hp-red);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.affix-icon { font-size: 0.85rem; flex-shrink: 0; }
+.affix-text { line-height: 1.4; }
+.affix-text strong { color: #fca5a5; }
+
+/* ---- RESULT SCREENS ---- */
 #defeat-screen {
+  align-items: center;
+  justify-content: center;
   background:
     radial-gradient(ellipse at 50% 40%, rgba(220, 38, 38, 0.1) 0%, transparent 50%),
     var(--bg-abyss);
@@ -1114,15 +1373,14 @@ body {
 
 .result-content { text-align: center; padding: 2rem; }
 
-.victory-title, .defeat-title {
+.defeat-title {
   font-family: 'Orbitron', monospace;
   font-size: clamp(2rem, 6vw, 3.5rem);
   font-weight: 900;
   margin-bottom: 0.5rem;
+  color: var(--hp-red);
+  text-shadow: 0 0 50px rgba(220, 38, 38, 0.3);
 }
-
-.victory-title { color: var(--gold); text-shadow: 0 0 50px rgba(255, 215, 0, 0.3); }
-.defeat-title { color: var(--hp-red); text-shadow: 0 0 50px rgba(220, 38, 38, 0.3); }
 
 .result-subtitle { font-size: 1rem; color: var(--text-dim); margin-bottom: 2rem; }
 
@@ -1171,9 +1429,12 @@ body {
   .passive-card { display: none; }
   .deck-display { margin-top: 0; }
   .right-panel { width: 100%; max-height: 150px; border-left: none; border-top: 1px solid var(--border); }
+  .item-inventory { display: none; }
 }
 
 @media (max-width: 640px) {
+  .loot-grid { grid-template-columns: 1fr; }
+  .weapon-grid { grid-template-columns: 1fr 1fr; }
   .boss-sprite { font-size: 3rem; }
   .weapon-slots { gap: 0.5rem; }
   .slot-drop { width: 120px; height: 56px; }
