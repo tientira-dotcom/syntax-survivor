@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syntax Survivor</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- TITLE SCREEN -->
+  <div id="title-screen" class="screen active">
+    <div class="title-bg">
+      <div class="particle-field" id="particles"></div>
+      <div class="title-content">
+        <h1 class="game-title">
+          <span class="title-syntax">SYNTAX</span>
+          <span class="title-survivor">SURVIVOR</span>
+        </h1>
+        <p class="subtitle">Roguelike Edition</p>
+        <p class="tagline">Your words are your weapons.</p>
+        <button class="btn-primary pulse" id="btn-start">
+          <span class="btn-icon">⚔</span> BEGIN RUN
+        </button>
+        <div class="title-info">
+          <div class="info-card">
+            <span class="info-label">CHARACTER</span>
+            <span class="info-value">The Historian</span>
+          </div>
+          <div class="info-card">
+            <span class="info-label">WEAPON</span>
+            <span class="info-value">The Dual-Uzi</span>
+          </div>
+          <div class="info-card">
+            <span class="info-label">BOSS</span>
+            <span class="info-value">The Echoing Cave</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMBAT SCREEN -->
+  <div id="combat-screen" class="screen">
+    <!-- Top HUD -->
+    <div class="combat-hud">
+      <div class="player-hud">
+        <div class="hud-portrait">
+          <span class="portrait-icon">📜</span>
+        </div>
+        <div class="hud-info">
+          <span class="hud-name">The Historian</span>
+          <div class="hp-bar">
+            <div class="hp-fill player-hp-fill" id="player-hp-fill"></div>
+            <span class="hp-text" id="player-hp-text">100/100</span>
+          </div>
+        </div>
+      </div>
+      <div class="turn-indicator">
+        <span class="turn-label">TURN</span>
+        <span class="turn-number" id="turn-number">1</span>
+      </div>
+      <div class="boss-hud">
+        <div class="hud-info" style="text-align:right">
+          <span class="hud-name" id="boss-name">The Echoing Cave</span>
+          <div class="hp-bar">
+            <div class="hp-fill boss-hp-fill" id="boss-hp-fill"></div>
+            <span class="hp-text" id="boss-hp-text">120/120</span>
+          </div>
+        </div>
+        <div class="hud-portrait boss-portrait">
+          <span class="portrait-icon">🦇</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Boss Area -->
+    <div class="boss-area" id="boss-area">
+      <div class="boss-visual" id="boss-visual">
+        <div class="boss-sprite" id="boss-sprite">🦇</div>
+        <div class="boss-affix" id="boss-affix">
+          <span class="affix-icon">⚠</span>
+          <span class="affix-text">The Repetition Curse — Using a word from last turn reflects damage!</span>
+        </div>
+      </div>
+      <div class="boss-intent" id="boss-intent"></div>
+      <div class="damage-display" id="damage-display"></div>
+    </div>
+
+    <!-- Weapon Area -->
+    <div class="weapon-area">
+      <div class="weapon-header">
+        <span class="weapon-icon">🔫</span>
+        <span class="weapon-name">THE DUAL-UZI</span>
+        <span class="weapon-type">Rapid Fire</span>
+      </div>
+      <div class="weapon-slots" id="weapon-slots">
+        <div class="weapon-slot" data-slot="0" data-required="verb">
+          <div class="slot-label">VERB</div>
+          <div class="slot-drop" id="slot-0">
+            <span class="slot-placeholder">Drag a Verb here</span>
+          </div>
+        </div>
+        <div class="slot-connector">+</div>
+        <div class="weapon-slot" data-slot="1" data-required="adverb">
+          <div class="slot-label">ADVERB</div>
+          <div class="slot-drop" id="slot-1">
+            <span class="slot-placeholder">Drag an Adverb here</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn-execute" id="btn-execute" disabled>
+        <span class="execute-text">EXECUTE</span>
+        <span class="execute-icon">⚡</span>
+      </button>
+      <button class="btn-end-turn" id="btn-end-turn">
+        END TURN ▶
+      </button>
+    </div>
+
+    <!-- Hand Area -->
+    <div class="hand-area">
+      <div class="hand-label">
+        <span>YOUR HAND</span>
+        <span class="deck-info">
+          Deck: <span id="deck-count">0</span> |
+          Discard: <span id="discard-count">0</span>
+        </span>
+      </div>
+      <div class="hand-cards" id="hand-cards"></div>
+    </div>
+
+    <!-- Combat Log -->
+    <div class="combat-log" id="combat-log">
+      <div class="log-header">COMBAT LOG</div>
+      <div class="log-entries" id="log-entries"></div>
+    </div>
+
+    <!-- Character Passive -->
+    <div class="passive-indicator" id="passive-indicator">
+      <span class="passive-icon">📜</span>
+      <span class="passive-text">Ancient Knowledge: Past tense verbs deal +50% damage & grant 5 shield</span>
+    </div>
+  </div>
+
+  <!-- VICTORY SCREEN -->
+  <div id="victory-screen" class="screen">
+    <div class="result-content">
+      <h1 class="victory-title">⚔ VICTORY ⚔</h1>
+      <p class="result-subtitle">The Echoing Cave has been silenced.</p>
+      <div class="result-stats" id="victory-stats"></div>
+      <button class="btn-primary" id="btn-restart-win">
+        <span class="btn-icon">🔄</span> NEW RUN
+      </button>
+    </div>
+  </div>
+
+  <!-- DEFEAT SCREEN -->
+  <div id="defeat-screen" class="screen">
+    <div class="result-content defeat">
+      <h1 class="defeat-title">☠ DEFEATED ☠</h1>
+      <p class="result-subtitle">Your syntax was not strong enough...</p>
+      <div class="result-stats" id="defeat-stats"></div>
+      <button class="btn-primary" id="btn-restart-lose">
+        <span class="btn-icon">🔄</span> TRY AGAIN
+      </button>
+    </div>
+  </div>
+
+  <script type="module" src="js/data.js"></script>
+  <script type="module" src="js/engine.js"></script>
+  <script type="module" src="js/ui.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
