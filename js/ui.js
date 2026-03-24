@@ -31,7 +31,14 @@ export function initCombatUI(state, bossVictoryCallback, gameOverCallback) {
 
   addLog('system', `⚔ Boss ${state.bossNumber}: ${state.boss.data.name}`);
   for (const affix of state.boss.data.affixes) {
-    addLog('system', `⚠ ${affix.icon} ${affix.name}: ${affix.description}`);
+    let desc = affix.description;
+    if (affix.type === 'posShield') {
+      desc = desc.replace('{pos}', affix.posTypes[(state.turn - 1) % affix.posTypes.length].toUpperCase());
+    }
+    if (affix.type === 'tenseLock') {
+      desc = desc.replace('{tense}', affix.tenses[Math.floor((state.turn - 1) / 2) % affix.tenses.length].toUpperCase());
+    }
+    addLog('system', `⚠ ${affix.icon} ${affix.name}: ${desc}`);
   }
   updateBossIntent();
 }
